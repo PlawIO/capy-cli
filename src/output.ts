@@ -1,3 +1,4 @@
+import { log } from "@clack/prompts";
 import type { Credits } from "./types.js";
 
 export const IS_JSON = process.argv.includes("--json");
@@ -24,11 +25,12 @@ export function table(headers: string[], rows: (string | number | null | undefin
   const widths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map(r => String(r[i] || "").length))
   );
-  console.log(headers.map((h, i) => pad(h, widths[i] + 2)).join(""));
-  console.log("-".repeat(widths.reduce((a, b) => a + b + 2, 0)));
-  rows.forEach(r => {
-    console.log(r.map((c, i) => pad(String(c || ""), widths[i] + 2)).join(""));
-  });
+  const header = headers.map((h, i) => pad(h, widths[i] + 2)).join("");
+  const sep = "-".repeat(widths.reduce((a, b) => a + b + 2, 0));
+  const body = rows.map(r =>
+    r.map((c, i) => pad(String(c || ""), widths[i] + 2)).join("")
+  ).join("\n");
+  log.message(`${header}\n${sep}\n${body}`);
 }
 
 export function credits(c: Credits | number | null | undefined): string {
@@ -38,8 +40,5 @@ export function credits(c: Credits | number | null | undefined): string {
 }
 
 export function section(title: string): void {
-  if (!IS_JSON) {
-    console.log(`\n${title}`);
-    console.log("-".repeat(80));
-  }
+  if (!IS_JSON) log.step(title);
 }

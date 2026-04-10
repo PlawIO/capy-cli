@@ -72,7 +72,7 @@ Env vars: `CAPY_API_KEY`, `CAPY_PROJECT_ID`, `CAPY_SERVER`, `CAPY_ENV_FILE`, `GR
 
 ## Requirements
 
-Node.js 18+ or Bun. GitHub CLI (`gh`) for quality gate checks.
+[Bun](https://bun.sh) runtime. GitHub CLI (`gh`) for quality gate checks.
 
 ## License
 

@@ -1,19 +1,17 @@
 {
   "name": "capyai",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "description": "Unofficial Capy.ai CLI for agent orchestration with quality gates",
   "bin": {
     "capy": "./bin/capy.js"
   },
   "scripts": {
-    "build": "bun build bin/capy.ts --outdir dist --target node",
-    "prepublishOnly": "bun run build"
+    "typecheck": "tsc --noEmit"
   },
   "files": [
     "bin/",
-    "src/",
-    "dist/"
+    "src/"
   ],
   "engines": {
     "node": ">=18"
@@ -32,5 +30,9 @@
     "coding-agent",
     "orchestration",
     "cli"
-  ]
+  ],
+  "dependencies": {
+    "@clack/prompts": "^1.2.0",
+    "citty": "^0.2.2"
+  }
 }
