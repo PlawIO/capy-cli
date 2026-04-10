@@ -1,5 +1,5 @@
 {
-  "name": "capy-cli",
+  "name": "capyai",
   "version": "0.2.0",
   "type": "module",
   "description": "Unofficial Capy.ai CLI for agent orchestration with quality gates",
