@@ -87,6 +87,7 @@ export interface DiffData {
 
 export interface Model {
   id: string;
+  name?: string;
   provider?: string;
   captainEligible?: boolean;
 }

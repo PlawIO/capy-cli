@@ -1,15 +1,10 @@
 import * as config from "./config.js";
 import type { Task, Thread, ThreadMessage, DiffData, Model, ListResponse, PullRequestRef } from "./types.js";
 
-async function request(method: string, path: string, body?: unknown): Promise<any> {
-  const cfg = config.load();
-  if (!cfg.apiKey) {
-    console.error("capy: API key not configured. Run: capy init");
-    process.exit(1);
-  }
-  const url = `${cfg.server}${path}`;
+async function rawRequest(apiKey: string, server: string, method: string, path: string, body?: unknown): Promise<any> {
+  const url = `${server}${path}`;
   const headers: Record<string, string> = {
-    "Authorization": `Bearer ${cfg.apiKey}`,
+    "Authorization": `Bearer ${apiKey}`,
     "Accept": "application/json",
   };
   const init: RequestInit = { method, headers };
@@ -38,6 +33,34 @@ async function request(method: string, path: string, body?: unknown): Promise<an
     console.error("capy: bad API response:", text.slice(0, 200));
     process.exit(1);
   }
+}
+
+async function request(method: string, path: string, body?: unknown): Promise<any> {
+  const cfg = config.load();
+  if (!cfg.apiKey) {
+    console.error("capy: API key not configured. Run: capy init");
+    process.exit(1);
+  }
+  return rawRequest(cfg.apiKey, cfg.server, method, path, body);
+}
+
+// --- Init helpers (accept key directly, before config is saved) ---
+export interface Project {
+  id: string;
+  name: string;
+  description?: string | null;
+  taskCode: string;
+  repos: { repoFullName: string; branch: string }[];
+}
+
+export async function listProjects(apiKey: string, server = "https://capy.ai/api/v1"): Promise<Project[]> {
+  const data = await rawRequest(apiKey, server, "GET", "/projects");
+  return data.items || [];
+}
+
+export async function listModelsWithKey(apiKey: string, server = "https://capy.ai/api/v1"): Promise<Model[]> {
+  const data = await rawRequest(apiKey, server, "GET", "/models");
+  return data.models || [];
 }
 
 // --- Threads ---

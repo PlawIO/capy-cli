@@ -7,55 +7,92 @@ export const init = defineCommand({
   async run() {
     const p = await import("@clack/prompts");
     const config = await import("../config.js");
+    const api = await import("../api.js");
 
     p.intro("capy setup");
 
     const cfg = config.load();
-    const result = await p.group({
-      apiKey: () => p.password({
-        message: "Capy API key",
-        mask: "*",
-        validate: (v) => { if (!v) return "API key is required"; },
-      }),
-      projectId: () => p.text({
-        message: "Project ID",
-        initialValue: cfg.projectId || "",
-        validate: (v) => { if (!v) return "Project ID is required"; },
-      }),
-      repos: () => p.text({
-        message: "Repos (owner/repo:branch, comma-separated)",
-        initialValue: cfg.repos.map(r => `${r.repoFullName}:${r.branch}`).join(", ") || "",
-        placeholder: "owner/repo:main",
-      }),
-      defaultModel: () => p.text({
-        message: "Default model",
-        initialValue: cfg.defaultModel,
-      }),
-      reviewProvider: () => p.select({
-        message: "Review provider",
-        initialValue: cfg.quality?.reviewProvider || "greptile",
-        options: [
-          { value: "greptile", label: "Greptile", hint: "AI code review via Greptile API" },
-          { value: "capy", label: "Capy", hint: "GitHub unresolved review threads" },
-          { value: "both", label: "Both", hint: "Strictest: Greptile + GitHub threads" },
-          { value: "none", label: "None", hint: "Skip review gates" },
-        ],
-      }),
-    });
 
-    if (p.isCancel(result)) {
-      p.cancel("Setup cancelled.");
-      process.exit(0);
+    // 1. API key
+    const apiKey = await p.password({
+      message: "Capy API key",
+      mask: "*",
+      validate: (v) => { if (!v) return "API key is required"; },
+    });
+    if (p.isCancel(apiKey)) { p.cancel("Setup cancelled."); process.exit(0); }
+
+    // 2. Fetch projects + models in parallel using the key
+    const s = p.spinner();
+    s.start("Fetching your projects and models...");
+    const [projects, models] = await Promise.all([
+      api.listProjects(apiKey, cfg.server),
+      api.listModelsWithKey(apiKey, cfg.server),
+    ]);
+    s.stop(`Found ${projects.length} project${projects.length !== 1 ? "s" : ""}, ${models.length} models`);
+
+    if (!projects.length) {
+      p.log.error("No projects found for this API key. Create one at capy.ai first.");
+      process.exit(1);
     }
 
-    cfg.apiKey = result.apiKey;
-    cfg.projectId = result.projectId;
-    cfg.repos = (result.repos || "").split(",").filter(Boolean).map(s => {
-      const [repo, branch] = s.trim().split(":");
-      return { repoFullName: repo, branch: branch || "main" };
+    // 3. Select project
+    const projectId = projects.length === 1
+      ? (() => { p.log.info(`Project: ${projects[0].name} (${projects[0].taskCode})`); return projects[0].id; })()
+      : await (async () => {
+          const sel = await p.select({
+            message: "Select project",
+            initialValue: cfg.projectId || projects[0].id,
+            options: projects.map(proj => ({
+              value: proj.id,
+              label: proj.name,
+              hint: `${proj.taskCode} \u2022 ${proj.repos.length} repo${proj.repos.length !== 1 ? "s" : ""}`,
+            })),
+          });
+          if (p.isCancel(sel)) { p.cancel("Setup cancelled."); process.exit(0); }
+          return sel;
+        })();
+
+    const selectedProject = projects.find(proj => proj.id === projectId)!;
+
+    // 4. Show repos from project (auto-populated, no typing needed)
+    if (selectedProject.repos.length) {
+      p.log.info(`Repos:\n${selectedProject.repos.map(r => `  ${r.repoFullName} (${r.branch})`).join("\n")}`);
+    } else {
+      p.log.warn("No repos configured on this project. Add them at capy.ai.");
+    }
+
+    // 5. Select default model
+    const captainModels = models.filter(m => m.captainEligible);
+    const defaultModel = await p.select({
+      message: "Default model",
+      initialValue: cfg.defaultModel || "gpt-5.4",
+      options: captainModels.map(m => ({
+        value: m.id,
+        label: m.name || m.id,
+        hint: m.provider || undefined,
+      })),
     });
-    cfg.defaultModel = result.defaultModel;
-    cfg.quality.reviewProvider = result.reviewProvider as string;
+    if (p.isCancel(defaultModel)) { p.cancel("Setup cancelled."); process.exit(0); }
+
+    // 6. Review provider
+    const reviewProvider = await p.select({
+      message: "Review provider",
+      initialValue: cfg.quality?.reviewProvider || "greptile",
+      options: [
+        { value: "greptile", label: "Greptile", hint: "AI code review via Greptile API" },
+        { value: "capy", label: "Capy", hint: "GitHub unresolved review threads" },
+        { value: "both", label: "Both", hint: "Strictest: Greptile + GitHub threads" },
+        { value: "none", label: "None", hint: "Skip review gates" },
+      ],
+    });
+    if (p.isCancel(reviewProvider)) { p.cancel("Setup cancelled."); process.exit(0); }
+
+    // Save
+    cfg.apiKey = apiKey;
+    cfg.projectId = projectId as string;
+    cfg.repos = selectedProject.repos;
+    cfg.defaultModel = defaultModel as string;
+    cfg.quality.reviewProvider = reviewProvider as string;
 
     config.save(cfg);
     p.outro(`Config saved to ${config.CONFIG_PATH}`);
