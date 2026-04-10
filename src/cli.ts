@@ -88,7 +88,7 @@ commands.captain = commands.plan = async function(argv: string[]) {
   const model = parseModel(argv) || config.load().defaultModel;
   const data = await api.createThread(prompt, model);
   if (fmt.IS_JSON) { fmt.out(data); return; }
-  console.log(`Captain started: https://app.capy.ai/threads/${data.id}`);
+  console.log(`Captain started: https://capy.ai/project/${config.load().projectId}/captain/${data.id}`);
   console.log(`Thread: ${data.id}  Model: ${model}`);
 };
 
@@ -158,7 +158,7 @@ commands.build = commands.run = async function(argv: string[]) {
   const model = parseModel(argv) || config.load().defaultModel;
   const data = await api.createTask(prompt, model);
   if (fmt.IS_JSON) { fmt.out(data); return; }
-  console.log(`Build started: https://app.capy.ai/tasks/${data.id}`);
+  console.log(`Build started: https://capy.ai/project/${config.load().projectId}/tasks/${data.id}`);
   console.log(`ID: ${data.identifier}  Model: ${model}`);
 };
 
@@ -646,7 +646,7 @@ commands.retry = async function(argv: string[]) {
 
   const model = parseModel(argv) || cfg.defaultModel;
   const data = await api.createThread(retryPrompt, model);
-  console.log(`Retry started: https://app.capy.ai/threads/${data.id}`);
+  console.log(`Retry started: https://capy.ai/project/${cfg.projectId}/captain/${data.id}`);
   console.log(`Thread: ${data.id}  Model: ${model}`);
   console.log(`\nContext included: ${context.split("\n").length} lines from previous attempt.`);
 };
